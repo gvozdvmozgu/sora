@@ -14,12 +14,15 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
-    pub unsafe fn load_plugin(&mut self, filename: impl AsRef<OsStr>) -> Result<()> {
-        let library = Library::new(filename)?;
-        let plugin_create: Symbol<unsafe fn() -> *mut dyn Plugin> =
-            library.get(b"plugin_create")?;
+    pub unsafe fn load_plugin(
+        &mut self,
+        filename: impl AsRef<OsStr>,
+    ) -> Result<(), PluginLoadError> {
+        let library = Library::new(filename).map_err(PluginLoadError::Library)?;
+        let create_plugin: Symbol<unsafe fn() -> *mut dyn Plugin> =
+            unsafe { library.get(b"create_plugin").map_err(PluginLoadError::Plugin)? };
 
-        let plugin = plugin_create();
+        let plugin = create_plugin();
         let plugin = Box::from_raw(plugin);
 
         self.plugins.push(plugin);
@@ -31,4 +34,12 @@ impl PluginManager {
     pub fn run(&self) {
         self.plugins.iter().for_each(|plugin| plugin.run());
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginLoadError {
+    #[error("cannot load library for plugin: {0}")]
+    Library(libloading::Error),
+    #[error("library does not contain a valid plugin")]
+    Plugin(libloading::Error),
 }

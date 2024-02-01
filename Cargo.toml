@@ -13,3 +13,4 @@ path = "bin/sora.rs"
 [dependencies]
 anyhow = "1.0"
 libloading = "0.8"
+thiserror = "1.0"

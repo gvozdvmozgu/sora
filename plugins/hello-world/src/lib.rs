@@ -9,6 +9,6 @@ impl sora::Plugin for Hello {
 
 #[no_mangle]
 #[allow(improper_ctypes_definitions)]
-pub extern "C" fn plugin_create() -> *mut dyn sora::Plugin {
+pub extern "C" fn create_plugin() -> *mut dyn sora::Plugin {
     Box::into_raw(Box::new(Hello::default()))
 }

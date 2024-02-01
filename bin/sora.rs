@@ -7,7 +7,7 @@ fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
 
     let path = match args.next() {
-        Some(filename) if args.is_empty() => filename,
+        Some(path) if args.is_empty() => path,
         Some(_) => bail!("only one plugin folder path must be specified."),
         None => bail!("a plugin folder path must be specified."),
     };
