@@ -26,6 +26,10 @@ pub trait Plugin: Any + Send + Sync {
 pub trait Loader {
     type Library;
 
+    /// # Safety
+    ///
+    /// Users of this API must specify the correct type of the function or
+    /// variable loaded.
     unsafe fn load(filename: impl AsRef<OsStr>) -> Result<(Self::Library, Box<dyn Plugin>)>;
 }
 
@@ -41,14 +45,6 @@ impl Loader for Native {
         let plugin = Box::from_raw(create_plugin());
 
         Ok((library, plugin))
-    }
-}
-
-pub struct Noop;
-
-impl Plugin for Noop {
-    fn run(&self) {
-        todo!()
     }
 }
 
