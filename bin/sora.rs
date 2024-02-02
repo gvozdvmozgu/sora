@@ -12,14 +12,15 @@ fn main() -> Result<()> {
         None => bail!("a plugin folder path must be specified."),
     };
 
-    let mut manager = PluginManager::default();
+    let mut manager = PluginManager::new();
 
     for entry in std::fs::read_dir(path)? {
         let entry = entry?;
         unsafe { manager.load_plugin(entry.path())? };
     }
 
-    manager.par_dispatch();
+    let dispatcher = manager.into_dispatcher();
+    dispatcher.dispatch_par();
 
     Ok(())
 }
