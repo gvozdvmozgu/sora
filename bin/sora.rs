@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         unsafe { manager.load_plugin(entry.path())? };
     }
 
-    manager.run();
+    manager.par_dispatch();
 
     Ok(())
 }

@@ -1,9 +1,10 @@
+use std::any::Any;
 use std::ffi::OsStr;
 
 use anyhow::Result;
 use libloading::{Library, Symbol};
 
-pub trait Plugin {
+pub trait Plugin: Any + Send + Sync {
     fn run(&self);
 }
 
@@ -14,6 +15,10 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
+    /// # Safety
+    ///
+    /// Users of this API must specify the correct type of the function or
+    /// variable loaded.
     pub unsafe fn load_plugin(
         &mut self,
         filename: impl AsRef<OsStr>,
@@ -31,7 +36,13 @@ impl PluginManager {
         Ok(())
     }
 
-    pub fn run(&self) {
+    pub fn par_dispatch(&self) {
+        use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
+
+        self.plugins.par_iter().for_each(|plugin| plugin.run());
+    }
+
+    pub fn dispatch(&self) {
         self.plugins.iter().for_each(|plugin| plugin.run());
     }
 }
