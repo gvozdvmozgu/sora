@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::marker::PhantomData;
 
+use ahash::AHashMap;
 use libloading::{Library, Symbol};
-use petgraph::algo::toposort;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
 pub type Result<T> = std::result::Result<T, PluginLoadError>;
@@ -50,7 +50,7 @@ impl Loader for Native {
 
 pub struct PluginManager<L: Loader = Native> {
     plugins: Vec<Box<dyn Plugin>>,
-    name_of_plugin: HashMap<&'static str, usize>,
+    name_of_plugin: AHashMap<&'static str, usize>,
     libraries: Vec<L::Library>,
     marker: PhantomData<L>,
 }
@@ -77,6 +77,7 @@ impl<L: Loader> PluginManager<L> {
     }
 
     pub fn into_dispatcher(mut self) -> Dispatcher<L::Library> {
+        use petgraph::algo::toposort;
         use petgraph::graph::DiGraph;
 
         let mut graph = DiGraph::new();
@@ -116,10 +117,10 @@ impl<L: Loader> PluginManager<L> {
 impl<L: Loader> Default for PluginManager<L> {
     fn default() -> Self {
         Self {
-            plugins: Default::default(),
-            name_of_plugin: HashMap::new(),
-            libraries: Default::default(),
-            marker: Default::default(),
+            plugins: <_>::default(),
+            name_of_plugin: <_>::default(),
+            libraries: <_>::default(),
+            marker: PhantomData,
         }
     }
 }
@@ -199,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn smoke_test() {
+    fn smoke() {
         define_plugins! {
             A {
                 run: {
@@ -232,5 +233,27 @@ mod tests {
         let captured = String::from_utf8(captured).unwrap();
 
         assert_eq!(captured, "A\nB\n");
+    }
+
+    #[test]
+    #[should_panic(expected = "Cycle(NodeIndex(1))")]
+    fn cycle() {
+        define_plugins! {
+            A {
+                run: {},
+                dependencies: ["B"]
+            },
+            B {
+                run: {},
+                dependencies: ["A"]
+            }
+        };
+
+        let mut manager: PluginManager<PluginLoader> = PluginManager::default();
+
+        unsafe { manager.load_plugin("A").unwrap() };
+        unsafe { manager.load_plugin("B").unwrap() };
+
+        let _dispatcher = manager.into_dispatcher();
     }
 }
