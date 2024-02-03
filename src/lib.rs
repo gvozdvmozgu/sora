@@ -164,50 +164,60 @@ mod tests {
 
     use crate::{Loader, Plugin, PluginManager, Result};
 
+    #[macro_export]
+    macro_rules! define_plugins {
+        ($($name:ident { run: $run_block:block $(, dependencies: [$($deps:expr),*] )? }),+) => {
+            $(
+                struct $name;
+                impl Plugin for $name {
+                    fn run(&self) {
+                        $run_block
+                    }
+
+                    fn dependencies(&self) -> &'static [&'static str] {
+                        &[$($($deps),*)?]
+                    }
+                }
+            )+
+
+            pub struct PluginLoader;
+
+            impl Loader for PluginLoader {
+                type Library = ();
+
+                unsafe fn load(filename: impl AsRef<OsStr>) -> Result<(Self::Library, Box<dyn Plugin>)> {
+                    let name = filename.as_ref().to_str().unwrap();
+                    let plugin: Box<dyn Plugin> = match name {
+                        $( stringify!($name) => Box::new($name {}), )+
+                        _ => unimplemented!(),
+                    };
+
+                    Ok(((), plugin))
+                }
+            }
+        };
+    }
+
     #[test]
     fn smoke_test() {
-        struct A;
-
-        impl Plugin for A {
-            fn run(&self) {
-                println!("A");
+        define_plugins! {
+            A {
+                run: {
+                    println!("A");
+                }
+            },
+            B {
+                run: {
+                    println!("B");
+                },
+                dependencies: ["A"]
             }
         }
 
-        struct B;
+        let mut manager: PluginManager<PluginLoader> = PluginManager::default();
 
-        impl Plugin for B {
-            fn dependencies(&self) -> &'static [&'static str] {
-                &["A"]
-            }
-
-            fn run(&self) {
-                println!("B")
-            }
-        }
-
-        pub struct Fake {}
-
-        impl Loader for Fake {
-            type Library = ();
-
-            unsafe fn load(
-                filename: impl AsRef<OsStr>,
-            ) -> Result<(Self::Library, Box<dyn Plugin>)> {
-                let plugin: Box<dyn Plugin> = match filename.as_ref().to_str().unwrap() {
-                    "a" => Box::new(A),
-                    "b" => Box::new(B),
-                    _ => unimplemented!(),
-                };
-
-                Ok(((), plugin))
-            }
-        }
-
-        let mut manager: PluginManager<Fake> = PluginManager::default();
-
-        unsafe { manager.load_plugin("b").unwrap() };
-        unsafe { manager.load_plugin("a").unwrap() };
+        unsafe { manager.load_plugin("B").unwrap() };
+        unsafe { manager.load_plugin("A").unwrap() };
 
         let dispatcher = manager.into_dispatcher();
 
