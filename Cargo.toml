@@ -11,7 +11,7 @@ name = "sora"
 path = "bin/sora.rs"
 
 [dependencies]
-ahash = "0.8.7"
+ahash = "0.8.8"
 anyhow = "1.0"
 libloading = "0.8"
 petgraph = "0.6"
